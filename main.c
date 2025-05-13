@@ -197,11 +197,12 @@ void modif_fichier(char *nom_fic, char *fic_result) {
 			sommets_supp += Din[i];
 		}
 	}
+	printf("sommet supp = %d\n", sommets_supp - k);
 	FILE *F_read = fopen(nom_fic, "r");
 	FILE *F_write = fopen(fic_result, "w");
 	indice nb_sommet, nb_arcs;
 	fscanf(F_read, "%d %d", &nb_sommet, &nb_arcs);
-	fprintf(F_write, "%d\n%d\n", nb_sommet + sommets_supp - 1, nb_arcs + sommets_supp - 1);
+	fprintf(F_write, "%d\n%d\n", nb_sommet + sommets_supp - k, nb_arcs + sommets_supp);
 	struct sommet *sommets = malloc((sommets_supp) * sizeof(struct sommet));
 	indice l = 0;
 	for (indice ligne = 0; ligne < nb_sommet; ligne++) {
@@ -213,13 +214,13 @@ void modif_fichier(char *nom_fic, char *fic_result) {
 				indice destination;
 				proba probabilite;
 				fscanf(F_read, "%d %f", &destination, &probabilite);
-				if (contient(aRemplacer, k, destination)) {
-					fprintf(F_write, "(%d, %d) %f ", destination + 1, origne, probabilite);
+				if (contient(aRemplacer, k, destination - 1)) {
+					fprintf(F_write, "(%d, %d) %f ", destination, origne, probabilite);
 					sommets[l].j = origne;
 					sommets[l].i = destination;
 					l++;
 				} else {
-					fprintf(F_write, "%d %f ", destination + 1, probabilite);
+					fprintf(F_write, "%d %f ", destination, probabilite);
 				}
 			}
 			fprintf(F_write, "\n");
@@ -227,8 +228,8 @@ void modif_fichier(char *nom_fic, char *fic_result) {
 		
 	}
 	// rajouter les acs inverses
-	for (indice i = 0; i <= sommets_supp; i++) {
-		fprintf(F_write, "(%d, %d) 1 %d %f\n", sommets[i].i + 1, sommets[i].j, sommets[i].j, 1.0);
+	for (indice i = 0; i < sommets_supp; i++) {
+		fprintf(F_write, "(%d, %d) 1 %d %f\n", sommets[i].i, sommets[i].j, sommets[i].j, 1.0);
 	}
 	//fclose(F_read);
 	//fclose(F_write);
@@ -359,7 +360,7 @@ void iter_converg(proba *x, proba *y, proba epsilon) {
 // Programme principal
 int main() {
     alpha = 0.85;
-	modif_fichier("coutois.txt", "res.txt");
+	modif_fichier("courtois.txt", "res.txt");
 	// aff(P);
 	//iter_converg(x, y, 0.00001);
 
