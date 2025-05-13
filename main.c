@@ -144,21 +144,21 @@ Degres lire_degre_fichier(char *nom_fic) {
 	fscanf(F, "%d", &L);
 	fscanf(F, "%d", &M);
 	C = L;
+	printf("%d\n\n", L);
 
 	indice *Din = calloc(L, sizeof(indice));
 	if (Din == NULL) exit(26);
 	indice *Dout = calloc(L, sizeof(indice));
 	if (Dout == NULL) exit(27);
-
+    
 	//indice k = 0;
 	for (int ligne = 0; ligne < L; ligne++) {
-		int indice_ligne;
-		fscanf(F, "%d %d", &indice_ligne, &Dout[indice_ligne - 1]);
-		if (Dout[indice_ligne - 1] == 0) {
-			//f[indice_ligne - 1] = 1.0;
-		} else {
-			//f[indice_ligne - 1] = 0.0;
-		}
+		indice indice_ligne;
+		indice sortant;
+		fscanf(F, "%d %d", &indice_ligne, &sortant);
+		Dout[indice_ligne - 1] = sortant;
+        printf("%d \n", Dout[indice_ligne - 1]);
+        
 		
 		for (int nb_sommet = 0; nb_sommet < Dout[indice_ligne - 1]; nb_sommet++) {
 			indice destination;
@@ -169,6 +169,7 @@ Degres lire_degre_fichier(char *nom_fic) {
 			//&P[k].j = destination;
 			//k++;
 		}
+		indice_ligne++;
 	}
 	fclose(F);
 	Degres degres;
@@ -213,12 +214,12 @@ void modif_fichier(char *nom_fic, char *fic_result) {
 				proba probabilite;
 				fscanf(F_read, "%d %f", &destination, &probabilite);
 				if (contient(aRemplacer, k, destination)) {
-					fprintf(F_write, "(%d, %d) %f ", destination, origne, probabilite);
+					fprintf(F_write, "(%d, %d) %f ", destination + 1, origne, probabilite);
 					sommets[l].j = origne;
 					sommets[l].i = destination;
 					l++;
 				} else {
-					fprintf(F_write, "%d %f ", destination, probabilite);
+					fprintf(F_write, "%d %f ", destination + 1, probabilite);
 				}
 			}
 			fprintf(F_write, "\n");
@@ -226,8 +227,8 @@ void modif_fichier(char *nom_fic, char *fic_result) {
 		
 	}
 	// rajouter les acs inverses
-	for (indice i = 0; i < sommets_supp; i++) {
-		fprintf(F_write, "(%d, %d) 1 %d %f\n", sommets[i].i, sommets[i].j, sommets[i].j, 1.0);
+	for (indice i = 0; i <= sommets_supp; i++) {
+		fprintf(F_write, "(%d, %d) 1 %d %f\n", sommets[i].i + 1, sommets[i].j, sommets[i].j, 1.0);
 	}
 	//fclose(F_read);
 	//fclose(F_write);
@@ -358,9 +359,9 @@ void iter_converg(proba *x, proba *y, proba epsilon) {
 // Programme principal
 int main() {
     alpha = 0.85;
-	lire_fichier2("wb-cs-stanford.mtx");
+	modif_fichier("coutois.txt", "res.txt");
 	// aff(P);
-	iter_converg(x, y, 0.00001);
+	//iter_converg(x, y, 0.00001);
 
 	exit(0);
 }
