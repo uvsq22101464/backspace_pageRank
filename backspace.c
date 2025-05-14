@@ -9,6 +9,7 @@ typedef float proba;
 typedef int indice;
 
 #define abs(x) ((x)>0? (x) : (-(x)))
+#define MAX(a, b) ((a) > (b) ? (a) : (b))
 
 // L est le nombre de ligne de la matrice
 // C est le nombre de colonne de la matrice
@@ -400,6 +401,16 @@ void aff (struct elem *P) {
 // # Programme principal #
 // #######################
 
+void normaliser(proba* v, int taille) {
+    float somme = 0.0f;
+    for (int i = 0; i < taille; i++) {
+        somme += v[i];
+    }
+    if (somme == 0.0f) return;  // Évite division par zéro
+    for (int i = 0; i < taille; i++) {
+        v[i] /= somme;
+    }
+}
 
 
 // Programme principal
@@ -411,7 +422,7 @@ int main() {
 	//aff(P);
 
 	iter_converg(x, y, 0.000001);
-	float s = 0;
+	float s = 0.0;
     for(int j = 0; j<C; j++) {
         printf("val de x : %f\n", x[j]);
         s += x[j];
@@ -419,43 +430,22 @@ int main() {
     printf("%d valeurs, somme de x : %f\n", C, s);
     
     
-    proba* x_aggreg = calloc(C, sizeof(proba)); // Nouveau vecteur x
-    if (x_aggreg == NULL) exit(31);
+    //regrouper les valeurs...
     
-    // Tableau pour marquer les (s, X) déjà traités
-    int* traites = calloc(C, sizeof(int));  // un booléen par renommage
-    if (traites == NULL) exit(32);
-    
-    for (int i = 0; i < C; i++) {
-        if (traites[i]) continue;
-    
-        int s = nommage[i].s;
-        int X = nommage[i].X;
-    
-        if (X != 0) {
-            // On agrège tous les x[j] tels que s==s && X==X
-            proba somme = 0.0f;
-            for (int j = 0; j < C; j++) {
-                if (nommage[j].s == s && nommage[j].X == X) {
-                    somme += x[nommage[j].renommage];
-                    traites[nommage[j].renommage] = 1;
-                }
-            }
-            x_aggreg[nommage[i].renommage] = somme;
-        } else {
-            // Pas à agréger, on garde la valeur
-            x_aggreg[nommage[i].renommage] = x[nommage[i].renommage];
-            traites[nommage[i].renommage] = 1;
-        }
+    indice nbSommet = 0;
+    for(int i = 0; i < C; i++) {
+        nbSommet = MAX(nbSommet, nommage[i].s);
     }
-    
-    // Remplacement de x par x_aggreg
-    free(x);
-    x = x_aggreg;
-    free(traites);
-    for (int j = 0; j < C; j++) {
-        printf("x_final[%d] = %f\n", j, x[j]);
+    proba *distrib = calloc(nbSommet, sizeof(proba));
+    for(int j = 0; j < C; j++) {
+        distrib[nommage[j].s - 1] += x[j];
     }
-    
+    normaliser(distrib, nbSommet);
+    float s2 = 0.0;
+    for(int j = 0; j<nbSommet; j++) {
+        printf("val de distrib : %f\n", distrib[j]);
+        s2 += distrib[j];
+    }
+    printf("%d valeurs, somme de x : %f\n", nbSommet, s2);
 	exit(0);
 }
