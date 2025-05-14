@@ -20,7 +20,7 @@ proba *x, *y, *f, alpha, *e;
 
 // Structure qui représente un sommet du graphe
 typedef struct {
-    indice s, X;
+    indice s, X, renommage;
 } sommet_transformer;
 
 // Structure de données pour stocker une matrice en plein
@@ -86,7 +86,7 @@ void alloue_memoire() {
 	assigne_zero(y);
 	f = malloc(C*sizeof(proba));
 	if (f==NULL) exit(24);
-	assigne_un(f);
+	assigne_zero(f);
 	e = malloc(C*sizeof(proba));
 	if (e==NULL) exit(25);
 }
@@ -112,14 +112,31 @@ void lire_transformation(char* sommet_temp, char* partie1, char* partie2) {
     }
 }
 
-void lire_fichier4(char *nom_fic) {
+int contient(indice *tab, int taille, indice val) {
+    for (int i = 0; i < taille; i++) {
+        if (tab[i] == val) return 1;
+    }
+    return 0;
+}
+
+int contient_sommet(sommet_transformer *tab, int taille, sommet_transformer val) {
+    for (int i = 0; i < taille; i++) {
+        if (tab[i].s == val.s && tab[i].X == val.X) {
+            return i;
+        }
+    }
+    return -1;
+}
+
+sommet_transformer* lire_fichier4(char *nom_fic, int *taille_nommage) {
 	FILE *F;
 	F = fopen(nom_fic, "r");
 	fscanf(F, "%d", &L);
 	fscanf(F, "%d", &M);
 	C = L;
 	alloue_memoire();
-	
+	sommet_transformer *nommage = malloc(M*sizeof(sommet_transformer));
+	indice compteur = 0;
 	indice k = 0;
 	for (int ligne = 0; ligne < L; ligne++) {
 		int Dout;
@@ -131,11 +148,17 @@ void lire_fichier4(char *nom_fic) {
 		//printf("debug partie 1 : %s\npartie 2 : %s\n", partie1, partie2);
 		indice_ligne.s = atoi(partie1);
 		indice_ligne.X = atoi(partie2);
-		if (Dout == 0) {
-			f[indice_ligne.s - 1] = 1.0;
+		
+		int position = contient_sommet(nommage, compteur, indice_ligne);
+		if (position != -1) {
+		    indice_ligne.renommage = position;
 		} else {
-			f[indice_ligne.s - 1] = 0.0;
+		    indice_ligne.renommage = compteur;
+		    nommage[compteur] = indice_ligne;    
+		    compteur++;
 		}
+        
+        
 		
 		for (int nb_sommet = 0; nb_sommet < Dout; nb_sommet++) {
 			P[k].i.s = indice_ligne.s;
@@ -150,18 +173,27 @@ void lire_fichier4(char *nom_fic) {
             P[k].j.s = atoi(part1);
             P[k].j.X = atoi(part2);
             
+            
+            int position = contient_sommet(nommage, compteur, P[k].j);
+    		if (position != -1) {
+    		    P[k].j.renommage = position;
+    		} else {
+    		    P[k].j.renommage = compteur;
+    		    nommage[compteur] = P[k].j;    
+    		    compteur++;
+    		}
+            
 			k++;
 		}
 	}
-	//fclose(F);
+	for (int l = 0; l<C;l++) {
+	    printf("sommet %d#%d rename en %d\n", nommage[l].s, nommage[l].X, nommage[l].renommage);
+	}
+	*taille_nommage = compteur;
+	return nommage;
 }
 
-int contient(indice *tab, int taille, indice val) {
-    for (int i = 0; i < taille; i++) {
-        if (tab[i] == val) return 1;
-    }
-    return 0;
-}
+
 
 typedef struct {
     indice *Din;
@@ -188,7 +220,7 @@ Degres lire_degre_fichier(char *nom_fic) {
 		indice sortant;
 		fscanf(F, "%d %d", &indice_ligne, &sortant);
 		Dout[indice_ligne - 1] = sortant;
-        printf("%d \n", Dout[indice_ligne - 1]);
+        //printf("%d \n", Dout[indice_ligne - 1]);
         
 		
 		for (int nb_sommet = 0; nb_sommet < Dout[indice_ligne - 1]; nb_sommet++) {
@@ -213,21 +245,33 @@ struct sommet {
 	indice i, j;
 };
 
+
 void modif_fichier(char *nom_fic, char *fic_result) {
 	Degres degres = lire_degre_fichier(nom_fic);
     indice *Din = degres.Din;
     indice *Dout = degres.Dout;
+    
+    for (int n = 0; n<C; n++) {
+        printf("%d, ", Din[n]);
+    }
+    printf("\n");
+    for (int n = 0; n<C; n++) {
+        printf("%d, ", Dout[n]);
+    }
+    printf("\n");
+    
 	indice *aRemplacer = malloc(L * sizeof(indice));
 	indice k = 0;
 	indice sommets_supp = 0;
 	for (int i = 0; i < L; i++) {
 		if (Dout[i] == 0) {
-			// remplace dans le fichier les valeurs i par (i, la valeur au début de la ligne actuelle)
 			aRemplacer[k] = i;
 			k++;
 			sommets_supp += Din[i];
 		}
 	}
+	
+	
 	printf("sommet supp = %d\n", sommets_supp - k);
 	FILE *F_read = fopen(nom_fic, "r");
 	FILE *F_write = fopen(fic_result, "w");
@@ -286,6 +330,7 @@ proba multVecteur(proba *x, proba *y) {
 void mult2(proba *x, proba *y) {
     proba poid;
     poid = ((1.0 - alpha) * (1.0 / C) + alpha * (1.0 / C) * multVecteur(x, f));
+    
     //assigne_proba(e, poid);
     for (indice i = 0; i < C; i++) {
         y[i] = alpha * y[i] + poid;
@@ -299,14 +344,14 @@ void mult(proba *x, proba *y, struct elem *P) {
 	struct elem e;
 	for (k=0; k<M; k++) {
 		e = P[k];
-		i = e.i.s;
-		j = e.j.s;
+		i = e.i.renommage;
+		j = e.j.renommage;
 		val = e.val;
 		y[j] += x[i] * val;
+
 	}
 	mult2(x, y);
 }
-
 
 
 // Norme 1 qui fais la différence
@@ -319,7 +364,6 @@ proba norme1 (proba *x, proba *y) {
 }
 
 
-
 void iter_converg(proba *x, proba *y, proba epsilon) {
 	proba sum;
 	proba delta = 1.0;
@@ -328,7 +372,7 @@ void iter_converg(proba *x, proba *y, proba epsilon) {
 		sum = 0.0;
 		for (int j = 0; j<C; j++) {
 		    if (j % 5000 == 0) {
-		        printf("valeur de l : %d %f \n", l*5000, x[j]);
+		        //printf("valeur de l : %d %f \n", l*5000, x[j]);
 		        l += 1;
 		    }
 			
@@ -338,6 +382,7 @@ void iter_converg(proba *x, proba *y, proba epsilon) {
 		assigne_zero(y);
 		mult(x, y, P);
 		delta = norme1(x, y);
+		//printf("%f\n", delta);
 		recopie(x, y);
 	}
 }
@@ -347,6 +392,7 @@ void aff (struct elem *P) {
 	printf("%d %d %d\n", L, C, M);
 	for (i=0 ; i<M ; i++)
 		printf("%d#%d %d#%d %g\n",P[i].i.s, P[i].i.X, P[i].j.s, P[i].j.X, P[i].val);
+		//printf("%d %d %g\n",P[i].i.s, P[i].j.s, P[i].val);
 }
 
 
@@ -354,14 +400,62 @@ void aff (struct elem *P) {
 // # Programme principal #
 // #######################
 
+
+
 // Programme principal
 int main() {
     alpha = 0.85;
 	//modif_fichier("courtois.txt", "res.txt");
-	
-	lire_fichier4("res.txt");
+	int taille_nommage;
+	sommet_transformer* nommage = lire_fichier4("res.txt", &taille_nommage);
 	//aff(P);
-	iter_converg(x, y, 0.00001);
+
+	iter_converg(x, y, 0.000001);
+	float s = 0;
+    for(int j = 0; j<C; j++) {
+        printf("val de x : %f\n", x[j]);
+        s += x[j];
+    }
+    printf("%d valeurs, somme de x : %f\n", C, s);
+    
+    
+    proba* x_aggreg = calloc(C, sizeof(proba)); // Nouveau vecteur x
+    if (x_aggreg == NULL) exit(31);
+    
+    // Tableau pour marquer les (s, X) déjà traités
+    int* traites = calloc(C, sizeof(int));  // un booléen par renommage
+    if (traites == NULL) exit(32);
+    
+    for (int i = 0; i < C; i++) {
+        if (traites[i]) continue;
+    
+        int s = nommage[i].s;
+        int X = nommage[i].X;
+    
+        if (X != 0) {
+            // On agrège tous les x[j] tels que s==s && X==X
+            proba somme = 0.0f;
+            for (int j = 0; j < C; j++) {
+                if (nommage[j].s == s && nommage[j].X == X) {
+                    somme += x[nommage[j].renommage];
+                    traites[nommage[j].renommage] = 1;
+                }
+            }
+            x_aggreg[nommage[i].renommage] = somme;
+        } else {
+            // Pas à agréger, on garde la valeur
+            x_aggreg[nommage[i].renommage] = x[nommage[i].renommage];
+            traites[nommage[i].renommage] = 1;
+        }
+    }
+    
+    // Remplacement de x par x_aggreg
+    free(x);
+    x = x_aggreg;
+    free(traites);
+    for (int j = 0; j < C; j++) {
+        printf("x_final[%d] = %f\n", j, x[j]);
+    }
     
 	exit(0);
 }
