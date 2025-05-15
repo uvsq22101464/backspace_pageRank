@@ -324,7 +324,7 @@ Degres lire_degre_fichier(char *nom_fic) {
     degres.Din = Din;
     degres.Dout = Dout;
     if (!puit) {
-        supprimer_arc("example5puits.txt", "res.txt", nbPuits);
+        supprimer_arc("G9.txt", "res.txt", nbPuits);
     }
 	return degres;
 }
@@ -334,15 +334,6 @@ void modif_fichier(char *nom_fic, char *fic_result, Degres degres) {
 	
     indice *Din = degres.Din;
     indice *Dout = degres.Dout;
-    
-    for (int n = 0; n<C; n++) {
-        printf("%d, ", Din[n]);
-    }
-    printf("\n");
-    for (int n = 0; n<C; n++) {
-        printf("%d, ", Dout[n]);
-    }
-    printf("\n");
     
 	indice *aRemplacer = malloc(L * sizeof(indice));
 	indice k = 0;
@@ -355,7 +346,6 @@ void modif_fichier(char *nom_fic, char *fic_result, Degres degres) {
 		}
 	}
 
-	printf("sommet supp = %d\n", sommets_supp - k);
 	FILE *F_read = fopen(nom_fic, "r");
 	FILE *F_write = fopen(fic_result, "w");
 	indice nb_sommet, nb_arcs;
@@ -413,8 +403,14 @@ proba multVecteur(proba *x, proba *y) {
 void mult2(proba *x, proba *y) {
     proba poid;
     poid = ((1.0 - alpha) * (1.0 / C));
-    
-    //assigne_proba(e, poid);
+        for (indice i = 0; i < C; i++) {
+        y[i] = alpha * y[i] + poid;
+    }
+}
+
+void mult2_normal(proba *x, proba *y) {
+    proba poid;
+    poid = ((1.0 - alpha) * (1.0 / C) + alpha * (1.0 / C) * multVecteur(x, f));
     for (indice i = 0; i < C; i++) {
         y[i] = alpha * y[i] + poid;
     }
@@ -446,9 +442,9 @@ void mult_normal(proba *x, proba *y, struct elem_normal *P_normal) {
 		j = e.j;
 		val = e.val;
 		y[j-1] += x[i-1] * val;
-
 	}
-	mult2(x, y);
+
+	mult2_normal(x, y);
 }
 
 
@@ -526,14 +522,14 @@ int main() {
     fprintf(fichier_resultats, "alpha,nb_iterations_backspace,nb_iterations_normal\n");
 
 
-    for (float a = 0.1; a <= 0.95; a += 0.05) {
+    for (float a = 0.5; a <= 0.95; a += 0.05) {
         alpha = a;
         printf("==> Test avec alpha = %.2f\n", alpha);
 
         puit = true;
-        Degres degres = lire_degre_fichier("example5puits.txt");
+        Degres degres = lire_degre_fichier("G9.txt");
         if (puit) {
-            modif_fichier("example5puits.txt", "resfinal.txt", degres);
+            modif_fichier("G9.txt", "resfinal.txt", degres);
         } else {
             Degres degres = lire_degre_fichier("res.txt");
             modif_fichier("res.txt", "resfinal.txt", degres);
@@ -545,8 +541,13 @@ int main() {
         init_x(x);
         int nb_iterations_backspace = iter_converg(x, y, epsilon);
         
-        //fprintf(fichier_resultats, "%.2f,%d\n", alpha, nb_iterations);
-
+        float s1 = 0.0;
+        for(int j = 0; j<C; j++) {
+            printf("val de x pour backspace : %f\n", x[j]);
+            s1 += x[j];
+        }
+        printf("somme backspace %f\n", s1);
+        
         // Libération mémoire
         //free(nommage);
         free(P);
@@ -554,10 +555,16 @@ int main() {
         //free(y);
         free(f);
         
-        lire_fichier3("example5puits.txt");
+        lire_fichier3("G9.txt");
         assigne_zero(y);
         init_x(x);
         int nb_iterations_normal = iter_converg_normal(x, y, epsilon);
+        float s2 = 0.0;
+        for(int j = 0; j<C; j++) {
+            printf("val de x pour normale : %f\n", x[j]);
+            s2 += x[j];
+        }
+        printf("somme normale %f\n", s2);
         free(P_normal);
         free(x);
         free(y);
