@@ -4,6 +4,7 @@
 #include <math.h>  // Pour fabs()
 #include <sys/time.h>
 #include <string.h>
+#include <time.h>
 
 typedef float proba;
 typedef int indice;
@@ -26,10 +27,18 @@ typedef struct {
 
 // Structure de données pour stocker une matrice en plein
 struct elem {
-	sommet_transformer i, j; // La taille
-	proba val; // Les valeurs
+	sommet_transformer i, j; // indices
+	proba val;
 };
 
+struct sommet {
+	indice i, j;
+};
+
+typedef struct {
+    indice *Din;
+    indice *Dout;
+} Degres;
 
 // ##############################
 // # Fonction pour les vecteurs #
@@ -159,7 +168,6 @@ sommet_transformer* lire_fichier4(char *nom_fic, int *taille_nommage) {
 		    compteur++;
 		}
         
-        
 		
 		for (int nb_sommet = 0; nb_sommet < Dout; nb_sommet++) {
 			P[k].i = indice_ligne;
@@ -183,10 +191,10 @@ sommet_transformer* lire_fichier4(char *nom_fic, int *taille_nommage) {
     		    nommage[compteur] = P[k].j;    
     		    compteur++;
     		}
-            
 			k++;
 		}
 	}
+	fclose(F);
 	for (int l = 0; l<C;l++) {
 	    printf("sommet %d#%d rename en %d\n", nommage[l].s, nommage[l].X, nommage[l].renommage);
 	}
@@ -194,12 +202,6 @@ sommet_transformer* lire_fichier4(char *nom_fic, int *taille_nommage) {
 	return nommage;
 }
 
-
-
-typedef struct {
-    indice *Din;
-    indice *Dout;
-} Degres;
 
 Degres lire_degre_fichier(char *nom_fic) {
 	FILE *F;
@@ -215,23 +217,16 @@ Degres lire_degre_fichier(char *nom_fic) {
 	indice *Dout = calloc(L, sizeof(indice));
 	if (Dout == NULL) exit(27);
     
-	//indice k = 0;
 	for (int ligne = 0; ligne < L; ligne++) {
 		indice indice_ligne;
 		indice sortant;
 		fscanf(F, "%d %d", &indice_ligne, &sortant);
 		Dout[indice_ligne - 1] = sortant;
-        //printf("%d \n", Dout[indice_ligne - 1]);
-        
 		
 		for (int nb_sommet = 0; nb_sommet < Dout[indice_ligne - 1]; nb_sommet++) {
 			indice destination;
 			fscanf(F, "%d %*f", &destination);
 			Din[destination - 1]++;
-
-			//P[k].i = indice_ligne;
-			//&P[k].j = destination;
-			//k++;
 		}
 		indice_ligne++;
 	}
@@ -242,9 +237,39 @@ Degres lire_degre_fichier(char *nom_fic) {
 	return degres;
 }
 
-struct sommet {
-	indice i, j;
-};
+void supprimer_arc(char *nom_fic, char *fic_result, float pourcentage) {
+    int nombre = (int) ((pourcentage / 100.0) * C);
+    int *supression = malloc(nombre*sizeof(int));
+    srand(time(NULL));
+    int val;
+    for (int i = 0; i<nombre; i++) {
+        val = rand() % C;
+        while (contient(supression, nombre, val)) {
+            val = rand() % C;
+        }
+        supression[i] = val;
+        printf("ligne a supprimer : %d\n", val+3);
+    }
+    FILE *F_read = fopen(nom_fic, "r");
+	FILE *F_write = fopen(fic_result, "w");
+	indice nb_sommet, nb_arcs;
+	fscanf(F_read, "%d %d \n", &nb_sommet, &nb_arcs);
+	fprintf(F_write, "%d\n%d\n", nb_sommet, nb_arcs);
+	char buffer[2048];
+	for (int ligne = 0; ligne<C; ligne++) {
+	    fgets(buffer, sizeof(buffer), F_read);
+    	if (contient(supression, nombre, ligne)) {
+    	    sscanf(buffer, "%d %*d", &nb_sommet);
+    	    printf("buffer : %s\n", buffer);
+    	    fprintf(F_write, "%d 0\n", nb_sommet);
+    	} else {
+    	    fputs(buffer, F_write);
+    	}
+	}
+	fclose(F_read);
+	fclose(F_write);
+	free(supression);
+}
 
 
 void modif_fichier(char *nom_fic, char *fic_result) {
@@ -271,8 +296,7 @@ void modif_fichier(char *nom_fic, char *fic_result) {
 			sommets_supp += Din[i];
 		}
 	}
-	
-	
+
 	printf("sommet supp = %d\n", sommets_supp - k);
 	FILE *F_read = fopen(nom_fic, "r");
 	FILE *F_write = fopen(fic_result, "w");
@@ -307,12 +331,12 @@ void modif_fichier(char *nom_fic, char *fic_result) {
 	for (indice i = 0; i < sommets_supp; i++) {
 		fprintf(F_write, "%d#%d 1 %d %f\n", sommets[i].i, sommets[i].j, sommets[i].j, 1.0);
 	}
-	//fclose(F_read);
-	//fclose(F_write);
-	//free(Din);
-	//free(Dout);
-	//free(aRemplacer);
-	//free(sommets);fr
+	fclose(F_read);
+	fclose(F_write);
+	free(Din);
+	free(Dout);
+	free(aRemplacer);
+	free(sommets);
 }
 
 
@@ -386,6 +410,7 @@ void iter_converg(proba *x, proba *y, proba epsilon) {
 		//printf("%f\n", delta);
 		recopie(x, y);
 	}
+	printf("convergence en %d étapes\n", l);
 }
 
 void aff (struct elem *P) {
@@ -416,7 +441,8 @@ void normaliser(proba* v, int taille) {
 // Programme principal
 int main() {
     alpha = 0.85;
-	//modif_fichier("G8.txt", "res.txt");
+	modif_fichier("G8.txt", "res.txt");
+	supprimer_arc("G8.txt", "res2.txt", 50);
 	int taille_nommage;
 	sommet_transformer* nommage = lire_fichier4("res.txt", &taille_nommage);
 	//aff(P);

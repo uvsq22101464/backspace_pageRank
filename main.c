@@ -144,21 +144,21 @@ Degres lire_degre_fichier(char *nom_fic) {
 	fscanf(F, "%d", &L);
 	fscanf(F, "%d", &M);
 	C = L;
-	printf("%d\n\n", L);
 
 	indice *Din = calloc(L, sizeof(indice));
 	if (Din == NULL) exit(26);
 	indice *Dout = calloc(L, sizeof(indice));
 	if (Dout == NULL) exit(27);
-    
+
 	//indice k = 0;
 	for (int ligne = 0; ligne < L; ligne++) {
-		indice indice_ligne;
-		indice sortant;
-		fscanf(F, "%d %d", &indice_ligne, &sortant);
-		Dout[indice_ligne - 1] = sortant;
-        printf("%d \n", Dout[indice_ligne - 1]);
-        
+		int indice_ligne;
+		fscanf(F, "%d %d", &indice_ligne, &Dout[indice_ligne - 1]);
+		if (Dout[indice_ligne - 1] == 0) {
+			//f[indice_ligne - 1] = 1.0;
+		} else {
+			//f[indice_ligne - 1] = 0.0;
+		}
 		
 		for (int nb_sommet = 0; nb_sommet < Dout[indice_ligne - 1]; nb_sommet++) {
 			indice destination;
@@ -169,7 +169,6 @@ Degres lire_degre_fichier(char *nom_fic) {
 			//&P[k].j = destination;
 			//k++;
 		}
-		indice_ligne++;
 	}
 	fclose(F);
 	Degres degres;
@@ -197,12 +196,11 @@ void modif_fichier(char *nom_fic, char *fic_result) {
 			sommets_supp += Din[i];
 		}
 	}
-	printf("sommet supp = %d\n", sommets_supp - k);
 	FILE *F_read = fopen(nom_fic, "r");
 	FILE *F_write = fopen(fic_result, "w");
 	indice nb_sommet, nb_arcs;
 	fscanf(F_read, "%d %d", &nb_sommet, &nb_arcs);
-	fprintf(F_write, "%d\n%d\n", nb_sommet + sommets_supp - k, nb_arcs + sommets_supp);
+	fprintf(F_write, "%d\n%d\n", nb_sommet + sommets_supp - 1, nb_arcs + sommets_supp - 1);
 	struct sommet *sommets = malloc((sommets_supp) * sizeof(struct sommet));
 	indice l = 0;
 	for (indice ligne = 0; ligne < nb_sommet; ligne++) {
@@ -214,7 +212,7 @@ void modif_fichier(char *nom_fic, char *fic_result) {
 				indice destination;
 				proba probabilite;
 				fscanf(F_read, "%d %f", &destination, &probabilite);
-				if (contient(aRemplacer, k, destination - 1)) {
+				if (contient(aRemplacer, k, destination)) {
 					fprintf(F_write, "(%d, %d) %f ", destination, origne, probabilite);
 					sommets[l].j = origne;
 					sommets[l].i = destination;
@@ -307,7 +305,7 @@ void mult(proba *x, proba *y, struct elem *P) {
 		i = e.i;
 		j = e.j;
 		val = e.val;
-		y[j] += x[i] * val;
+		y[j-1] += x[i-1] * val;
 	}
 	mult2(x, y);
 }
@@ -339,7 +337,7 @@ void iter_converg(proba *x, proba *y, proba epsilon) {
 		sum = 0.0;
 		for (int j = 0; j<C; j++) {
 		    if (j % 5000 == 0) {
-		        printf("valeur de l : %d %f \n", l*5000, x[j]);
+		        //printf("valeur de l : %d %f \n", l*5000, x[j]);
 		        l += 1;
 		    }
 			
@@ -360,9 +358,14 @@ void iter_converg(proba *x, proba *y, proba epsilon) {
 // Programme principal
 int main() {
     alpha = 0.85;
-	modif_fichier("courtois.txt", "res.txt");
-	// aff(P);
-	//iter_converg(x, y, 0.00001);
-
+	lire_fichier3("G8.txt");
+	aff(P);
+	iter_converg(x, y, 0.00001);
+	float s = 0.0;
+    for(int j = 0; j<C; j++) {
+        printf("val de x : %f\n", x[j]);
+        s += x[j];
+    }
+    printf("%d valeurs, somme de x : %f\n", C, s);
 	exit(0);
 }
