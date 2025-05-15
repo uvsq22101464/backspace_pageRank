@@ -1,7 +1,9 @@
 #include "stdio.h"
 #include "stdlib.h"
-#include <math.h>  // Pour fabs()
-#include <sys/time.h>
+#include <stdio.h>
+#include <time.h>
+#include <math.h>
+#include <unistd.h>
 
 typedef float proba;
 typedef int indice;
@@ -351,6 +353,166 @@ void iter_converg(proba *x, proba *y, proba epsilon) {
 		delta = norme1(x, y);
 		recopie(x, y);
 	}
+}
+
+// #########################################
+// # Fonction de création de graphique SVG #
+// #########################################
+int svg(proba *x1, proba *y1, const char *label1, proba *x2, proba *y2, const char *label2, size_t n, const char *xlabel, const char *ylabel) {
+	// Compteur pour le nom du fichier
+	static int graph_counter = 0;
+    graph_counter++;
+	
+	const int width   = 500;
+    const int height  = 350;
+    const int margin  = 50;
+	proba xmin = x1[0];
+	proba xmax = x1[0];
+	proba ymin = y1[0];
+	proba ymax = y1[0];
+
+	for (size_t i = 0; i<n; i++) {
+		if(x1[i] < xmin) 
+			xmin = x1[i];
+		if(x1[i] > xmax) 
+			xmax = x1[i];
+		if(y1[i] < ymin) 
+			ymin = y1[i];
+		if(y1[i] > ymax) 
+			ymax = y1[i];
+		if(x2[i] < xmin) 
+			xmin = x2[i];
+		if(x2[i] > xmax) 
+			xmax = x2[i];
+		if(y2[i] < ymin) 
+			ymin = y2[i];
+		if(y2[i] > ymax) 
+			ymax = y2[i];
+	}
+
+	// Créer le nom du fichier SVG avec timestamp
+    time_t now = time(NULL);
+    struct tm tm = *localtime(&now);
+    char filename[64];
+    snprintf(filename, sizeof(filename),
+             "graph_%04d%02d%02d_%02d%02d%02d_%d_%d.svg",
+             tm.tm_year + 1900,    // année
+             tm.tm_mon  + 1,       // mois
+             tm.tm_mday,           // jour
+             tm.tm_hour,           // heure
+             tm.tm_min,            // minute
+             tm.tm_sec,            // seconde
+			 getpid(),         	   // PID du processus
+             graph_counter);   
+
+	// Ouvrir le fichier SVG en écriture
+	FILE *f = fopen(filename, "w");
+    if (!f) { 
+		perror("graph.svg"); 
+		return 0; 
+	}
+
+	// Début du fichier SVG en XML
+	fprintf(f,
+        "<?xml version=\"1.0\"?>\n"
+        "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"%d\" height=\"%d\">\n"
+        "  <!-- Axe X -->\n"
+        "  <line x1=\"%d\" y1=\"%d\" x2=\"%d\" y2=\"%d\" stroke=\"black\"/>\n"
+        "  <!-- Axe Y -->\n"
+        "  <line x1=\"%d\" y1=\"%d\" x2=\"%d\" y2=\"%d\" stroke=\"black\"/>\n",
+        width, height,
+        margin, height-margin, width-margin, height-margin,
+        margin, height-margin, margin, margin);
+
+	// Graduations des axes
+	proba stepx = (xmax - xmin) / 6.0;
+    proba stepy = (ymax - ymin) / 6.0;
+
+    for (int i = 0; i <= 6; i++) {
+		proba xv = xmin + i * stepx;
+        proba X = margin + (xv - xmin) * (width - 2*margin) / (xmax - xmin);
+        fprintf(f,
+          "  <line x1=\"%g\" y1=\"%d\" x2=\"%g\" y2=\"%d\" stroke=\"black\"/>\n"
+          "  <text x=\"%g\" y=\"%d\" font-size=\"10\" text-anchor=\"middle\">%.1f</text>\n",
+          X, height-margin,
+          X, height-margin+6,
+          X, height-margin+20,
+          xv);
+    }
+
+    for (int i = 0; i <= 6; i++) {
+        double yv = ymin + i * stepy;
+        double Y = height - margin - (yv - ymin) * (height - 2*margin) / (ymax - ymin);
+        fprintf(f,
+          "  <line x1=\"%d\" y1=\"%g\" x2=\"%d\" y2=\"%g\" stroke=\"black\"/>\n"
+          "  <text x=\"%d\" y=\"%g\" font-size=\"10\" text-anchor=\"end\" dominant-baseline=\"middle\">%.1f</text>\n",
+          margin-6, Y,
+          margin,   Y,
+          margin-8, Y,
+          yv);
+    }
+
+	// Nommer les axes
+    fprintf(f,
+      "  <text x=\"%d\" y=\"%d\" font-size=\"14\" text-anchor=\"middle\">%s</text>\n",
+      width/2,
+      height - margin/3,
+      xlabel
+    );
+
+    fprintf(f,
+      "  <text x=\"%d\" y=\"%d\" font-size=\"14\" text-anchor=\"middle\"\n"
+      "        transform=\"rotate(-90 %d %d)\">%s</text>\n",
+      margin/3,
+      height/2,
+      margin/3, height/2,
+      ylabel
+	  
+    );
+
+	// Tracer première courbe
+	fprintf(f, "  <polyline fill=\"none\" stroke=\"red\" stroke-width=\"2\" points=\"");
+	for (size_t i = 0; i<n; i++) {
+		int x = margin + (x1[i] - xmin) * (width - 2*margin) / (xmax - xmin);
+		int y = height - margin - (y1[i] - ymin) * (height - 2*margin) / (ymax - ymin);
+		fprintf(f, "%d,%d ", x, y);
+	}
+	fprintf(f, "\"/>\n");
+
+	// Tracer deuxième courbe
+	fprintf(f, "  <polyline fill=\"none\" stroke=\"blue\" stroke-width=\"2\" points=\"");
+	for (size_t i = 0; i<n; i++) {
+		int x = margin + (x2[i] - xmin) * (width - 2*margin) / (xmax - xmin);
+		int y = height - margin - (y2[i] - ymin) * (height - 2*margin) / (ymax - ymin);
+		fprintf(f, "%d,%d ", x, y);
+	}
+	fprintf(f, "\"/>\n");
+
+	// Légende
+    int lx = margin + 10;
+    int ly = margin + 10;
+    fprintf(f,
+      "  <!-- Cadre de légende -->\n"
+      "  <rect x=\"%d\" y=\"%d\" width=\"120\" height=\"50\" fill=\"white\" stroke=\"black\"/>\n"
+      "  <!-- %s -->\n"
+      "  <line x1=\"%d\" y1=\"%d\" x2=\"%d\" y2=\"%d\" stroke=\"red\" stroke-width=\"2\"/>\n"
+      "  <text x=\"%d\" y=\"%d\" font-size=\"12\">%s</text>\n"
+      "  <!-- %s -->\n"
+      "  <line x1=\"%d\" y1=\"%d\" x2=\"%d\" y2=\"%d\" stroke=\"blue\" stroke-width=\"2\"/>\n"
+      "  <text x=\"%d\" y=\"%d\" font-size=\"12\">%s</text>\n",
+      lx, ly,
+	  label1,
+      lx+10, ly+15, lx+30, ly+15, lx+35, ly+19,
+	  label1, label2,
+      lx+10, ly+35, lx+30, ly+35, lx+35, ly+39,
+	  label2);
+
+	// Fin du SVG
+    fprintf(f, "</svg>\n");
+    fclose(f);
+
+	printf("graph.svg généré avec %zu points par courbe.\n", n);
+	return 1;
 }
 
 // #######################
