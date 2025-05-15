@@ -18,8 +18,10 @@ typedef int indice;
 indice L, C, M;
 
 struct elem *P;
+struct elem_normal *P_normal;
 proba *x, *y, *f, alpha, *e;
 int nbPuits = 50;
+bool puit = false;
 
 // Structure qui représente un sommet du graphe
 typedef struct {
@@ -29,6 +31,11 @@ typedef struct {
 // Structure de données pour stocker une matrice en plein
 struct elem {
 	sommet_transformer i, j; // indices
+	proba val;
+};
+
+struct elem_normal {
+	indice i, j; // indices
 	proba val;
 };
 
@@ -102,6 +109,22 @@ void alloue_memoire() {
 	if (e==NULL) exit(25);
 }
 
+void alloue_memoire_normal() {
+	P_normal = malloc(M*sizeof(struct elem));
+	if (P_normal==NULL) exit(26);
+	x = malloc(C*sizeof(proba));
+	if (x==NULL) exit(22);
+	init_x(x);
+	y = malloc(C*sizeof(proba));
+	if (y==NULL) exit(23);
+	assigne_zero(y);
+	f = malloc(C*sizeof(proba));
+	if (f==NULL) exit(24);
+	assigne_zero(f);
+	e = malloc(C*sizeof(proba));
+	if (e==NULL) exit(25);
+}
+
 void lire_transformation(char* sommet_temp, char* partie1, char* partie2) {
     memset(partie1, 0, sizeof(partie1));
     memset(partie2, 0, sizeof(partie2));
@@ -137,6 +160,32 @@ int contient_sommet(sommet_transformer *tab, int taille, sommet_transformer val)
         }
     }
     return -1;
+}
+
+void lire_fichier3(char *nom_fic) {
+	FILE *F;
+	F = fopen(nom_fic, "r");
+	fscanf(F, "%d", &L);
+	fscanf(F, "%d", &M);
+	C = L;
+	alloue_memoire_normal();
+	indice k = 0;
+	for (int ligne = 0; ligne < L; ligne++) {
+		int indice_ligne, Dout;
+		fscanf(F, "%d %d", &indice_ligne, &Dout);
+		if (Dout == 0) {
+			f[indice_ligne - 1] = 1.0;
+		} else {
+			f[indice_ligne - 1] = 0.0;
+		}
+		
+		for (int nb_sommet = 0; nb_sommet < Dout; nb_sommet++) {
+			P_normal[k].i = indice_ligne;
+			fscanf(F, "%d %f", &P_normal[k].j, &P_normal[k].val);
+			k++;
+		}
+	}
+	fclose(F);
 }
 
 sommet_transformer* lire_fichier4(char *nom_fic, int *taille_nommage) {
@@ -229,7 +278,6 @@ void supprimer_arc(char *nom_fic, char *fic_result, float pourcentage) {
     	    indice sommet = 0;
     	    sscanf(buffer, "%d %d", &sommet, &nb_arcs);
     	    arc_restant -= nb_arcs;
-    	    printf("buffer : %s\n", buffer);
     	    fprintf(F_write, "%d 0\n", sommet);
     	} else {
     	    fputs(buffer, F_write);
@@ -246,7 +294,7 @@ void supprimer_arc(char *nom_fic, char *fic_result, float pourcentage) {
 Degres lire_degre_fichier(char *nom_fic) {
 	FILE *F;
 	F = fopen(nom_fic, "r");
-    bool puit = false;
+    puit = false;
 	fscanf(F, "%d", &L);
 	fscanf(F, "%d", &M);
 	C = L;
@@ -276,12 +324,10 @@ Degres lire_degre_fichier(char *nom_fic) {
     degres.Din = Din;
     degres.Dout = Dout;
     if (!puit) {
-        supprimer_arc("G8.txt", "res.txt", nbPuits);
+        supprimer_arc("example5puits.txt", "res.txt", nbPuits);
     }
 	return degres;
 }
-
-
 
 
 void modif_fichier(char *nom_fic, char *fic_result, Degres degres) {
@@ -390,6 +436,21 @@ void mult(proba *x, proba *y, struct elem *P) {
 	mult2(x, y);
 }
 
+void mult_normal(proba *x, proba *y, struct elem_normal *P_normal) {
+	indice i, j, k;
+	proba val;
+	struct elem_normal e;
+	for (k=0; k<M; k++) {
+		e = P_normal[k];
+		i = e.i;
+		j = e.j;
+		val = e.val;
+		y[j-1] += x[i-1] * val;
+
+	}
+	mult2(x, y);
+}
+
 
 // Norme 1 qui fais la différence
 // entre les vecteurs entre 2 itérations
@@ -425,12 +486,28 @@ int iter_converg(proba *x, proba *y, proba epsilon) {
 	return l;
 }
 
-void aff (struct elem *P) {
-	indice i;
-	printf("%d %d %d\n", L, C, M);
-	for (i=0 ; i<M ; i++)
-		printf("%d#%d %d#%d %g\n",P[i].i.s, P[i].i.X, P[i].j.s, P[i].j.X, P[i].val);
-		//printf("%d %d %g\n",P[i].i.s, P[i].j.s, P[i].val);
+int iter_converg_normal(proba *x, proba *y, proba epsilon) {
+	proba sum;
+	proba delta = 1.0;
+	int l = 0;
+	while (delta > epsilon) {
+		sum = 0.0;
+		for (int j = 0; j<C; j++) {
+		    if (j % 5000 == 0) {
+		        //printf("valeur de l : %d %f \n", l*5000, x[j]);
+		        //l += 1;
+		    }
+		    	
+			sum += x[j];
+		}
+		l++;
+		assigne_zero(y);
+		mult_normal(x, y, P_normal);
+		delta = norme1(x, y);
+		recopie(x, y);
+	}
+	printf("convergence en %d étapes\n", l);
+	return l;
 }
 
 
@@ -439,45 +516,57 @@ void aff (struct elem *P) {
 // #######################
 
 int main() {
-    alpha = 0.85;
-    bool puit = true;
-    Degres degres = lire_degre_fichier("G8.txt");
-    if (puit) {
-        modif_fichier("G8.txt", "resfinal.txt", degres);
-    } else {
-        modif_fichier("res.txt", "resfinal.txt", degres);
+    float epsilon = 0.000001;
+    FILE *fichier_resultats = fopen("convergence.csv", "w");
+    if (!fichier_resultats) {
+        perror("Erreur lors de l'ouverture de convergence.csv");
+        exit(EXIT_FAILURE);
     }
 
-	int taille_nommage;
-	sommet_transformer* nommage = lire_fichier4("resfinal.txt", &taille_nommage);
-	//aff(P);
+    fprintf(fichier_resultats, "alpha,nb_iterations_backspace,nb_iterations_normal\n");
 
-	iter_converg(x, y, 0.000001);
-	
 
-	float s = 0.0;
-    for(int j = 0; j<C; j++) {
-        printf("val de x : %f\n", x[j]);
-        s += x[j];
+    for (float a = 0.1; a <= 0.95; a += 0.05) {
+        alpha = a;
+        printf("==> Test avec alpha = %.2f\n", alpha);
+
+        puit = true;
+        Degres degres = lire_degre_fichier("example5puits.txt");
+        if (puit) {
+            modif_fichier("example5puits.txt", "resfinal.txt", degres);
+        } else {
+            Degres degres = lire_degre_fichier("res.txt");
+            modif_fichier("res.txt", "resfinal.txt", degres);
+        }
+
+        int taille_nommage;
+        sommet_transformer* nommage = lire_fichier4("resfinal.txt", &taille_nommage);
+        assigne_zero(y);
+        init_x(x);
+        int nb_iterations_backspace = iter_converg(x, y, epsilon);
+        
+        //fprintf(fichier_resultats, "%.2f,%d\n", alpha, nb_iterations);
+
+        // Libération mémoire
+        //free(nommage);
+        free(P);
+        free(x);
+        //free(y);
+        free(f);
+        
+        lire_fichier3("example5puits.txt");
+        assigne_zero(y);
+        init_x(x);
+        int nb_iterations_normal = iter_converg_normal(x, y, epsilon);
+        free(P_normal);
+        free(x);
+        free(y);
+        free(f);
+        fprintf(fichier_resultats, "%.2f,%d,%d\n", alpha, nb_iterations_backspace, nb_iterations_normal);
     }
-    printf("%d valeurs, somme de x : %f\n", C, s);
+
+    fclose(fichier_resultats);
+    printf("Fichier convergence.csv généré.\n");
     
-    
-    //regrouper les valeurs des P,X
-    indice nbSommet = 0;
-    for(int i = 0; i < C; i++) {
-        nbSommet = MAX(nbSommet, nommage[i].s);
-    }
-    proba *distrib = calloc(nbSommet, sizeof(proba));
-    for(int j = 0; j < C; j++) {
-        distrib[nommage[j].s - 1] += x[j];
-    }
-    float s2 = 0.0;
-    for(int j = 0; j<nbSommet; j++) {
-        printf("val de distrib : %f\n", distrib[j]);
-        s2 += distrib[j];
-    }
-    printf("%d valeurs, somme de x : %f\n", nbSommet, s2);
-    
-	exit(0);
+    return 0;
 }
