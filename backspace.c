@@ -162,8 +162,8 @@ sommet_transformer* lire_fichier4(char *nom_fic, int *taille_nommage) {
         
 		
 		for (int nb_sommet = 0; nb_sommet < Dout; nb_sommet++) {
-			P[k].i.s = indice_ligne.s;
-			P[k].i.X = indice_ligne.X;
+			P[k].i = indice_ligne;
+			
 			char sommet_temp[1+2*C];
 			char part1[C], part2[C];
 			bool avantDelimiteur = true;
@@ -330,7 +330,7 @@ proba multVecteur(proba *x, proba *y) {
 
 void mult2(proba *x, proba *y) {
     proba poid;
-    poid = ((1.0 - alpha) * (1.0 / C) + alpha * (1.0 / C) * multVecteur(x, f));
+    poid = ((1.0 - alpha) * (1.0 / C));
     
     //assigne_proba(e, poid);
     for (indice i = 0; i < C; i++) {
@@ -416,7 +416,7 @@ void normaliser(proba* v, int taille) {
 // Programme principal
 int main() {
     alpha = 0.85;
-	//modif_fichier("courtois.txt", "res.txt");
+	//modif_fichier("G8.txt", "res.txt");
 	int taille_nommage;
 	sommet_transformer* nommage = lire_fichier4("res.txt", &taille_nommage);
 	//aff(P);
@@ -440,7 +440,7 @@ int main() {
     for(int j = 0; j < C; j++) {
         distrib[nommage[j].s - 1] += x[j];
     }
-    normaliser(distrib, nbSommet);
+    //normaliser(distrib, nbSommet);
     float s2 = 0.0;
     for(int j = 0; j<nbSommet; j++) {
         printf("val de distrib : %f\n", distrib[j]);
