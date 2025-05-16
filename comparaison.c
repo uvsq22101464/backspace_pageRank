@@ -20,7 +20,7 @@ indice L, C, M;
 struct elem *P;
 struct elem_normal *P_normal;
 proba *x, *y, *f, alpha, *e;
-int nbPuits = 50;
+int nbPuits = 50; // est utilisé pour créer un pourcentage de puits
 bool puit = false;
 
 // Structure qui représente un sommet du graphe
@@ -48,6 +48,11 @@ typedef struct {
     indice *Dout;
 } Degres;
 
+typedef struct {
+	proba val;
+	indice pos;
+} affichageComparaison;
+
 // ##############################
 // # Fonction pour les vecteurs #
 // ##############################
@@ -57,20 +62,6 @@ void assigne_zero(proba *V) {
 	indice i;
 	for (i=0; i<C; i++)
 		V[i] = 0.0;
-}
-
-void assigne_un(proba *V) {
-    indice i;
-    for (i=0; i<C; i++) {
-        V[i] = 1.0;
-    }
-}
-
-void assigne_proba(proba *V, proba e) {
-    indice i;
-    for (i=0; i<C; i++) {
-        V[i] = e;
-    }
 }
 
 // Initialise le x avec une proba
@@ -125,6 +116,7 @@ void alloue_memoire_normal() {
 	if (e==NULL) exit(25);
 }
 
+// Fonction qui sépare en deux parties autour du séparateur #.
 void lire_transformation(char* sommet_temp, char* partie1, char* partie2) {
     memset(partie1, 0, sizeof(partie1));
     memset(partie2, 0, sizeof(partie2));
@@ -146,6 +138,7 @@ void lire_transformation(char* sommet_temp, char* partie1, char* partie2) {
     }
 }
 
+// Permet de dire si un tableau contient une valeur ou non.
 int contient(indice *tab, int taille, indice val) {
     for (int i = 0; i < taille; i++) {
         if (tab[i] == val) return 1;
@@ -153,6 +146,7 @@ int contient(indice *tab, int taille, indice val) {
     return 0;
 }
 
+// Permet de dire si un tableau contient un sommet transformer ou non.
 int contient_sommet(sommet_transformer *tab, int taille, sommet_transformer val) {
     for (int i = 0; i < taille; i++) {
         if (tab[i].s == val.s && tab[i].X == val.X) {
@@ -162,6 +156,7 @@ int contient_sommet(sommet_transformer *tab, int taille, sommet_transformer val)
     return -1;
 }
 
+// Fonction qui permet de lire une matrice de sommets non transformés.
 void lire_fichier3(char *nom_fic) {
 	FILE *F;
 	F = fopen(nom_fic, "r");
@@ -188,6 +183,7 @@ void lire_fichier3(char *nom_fic) {
 	fclose(F);
 }
 
+// Fonction qui permet de lire une matrice avec des sommets transformés de type X#1.
 sommet_transformer* lire_fichier4(char *nom_fic, int *taille_nommage) {
 	FILE *F;
 	F = fopen(nom_fic, "r");
@@ -205,7 +201,6 @@ sommet_transformer* lire_fichier4(char *nom_fic, int *taille_nommage) {
 		char partie1[C], partie2[C];
 		fscanf(F, "%s %d", sommet_temporaire, &Dout);
 		lire_transformation(sommet_temporaire, partie1, partie2);
-		//printf("debug partie 1 : %s\npartie 2 : %s\n", partie1, partie2);
 		indice_ligne.s = atoi(partie1);
 		indice_ligne.X = atoi(partie2);
 		
@@ -252,6 +247,7 @@ sommet_transformer* lire_fichier4(char *nom_fic, int *taille_nommage) {
 	return nommage;
 }
 
+// Supprime un certain pourcentage d'acs dans un fichier.
 void supprimer_arc(char *nom_fic, char *fic_result, float pourcentage) {
     int nombre = (int) ((pourcentage / 100.0) * C);
     int *supression = malloc(nombre*sizeof(int));
@@ -263,7 +259,6 @@ void supprimer_arc(char *nom_fic, char *fic_result, float pourcentage) {
             val = rand() % C;
         }
         supression[i] = val;
-        printf("ligne a supprimer : %d\n", val+3);
     }
     FILE *F_read = fopen(nom_fic, "r");
 	FILE *F_write = fopen(fic_result, "w");
@@ -291,6 +286,8 @@ void supprimer_arc(char *nom_fic, char *fic_result, float pourcentage) {
     fclose(F_write);
 }
 
+// Lit le fichier et calcule les degré entrant et sortant pour chaque sommet.
+// Si il y a aucun puit alors on modifie le fichier en enlevant des arcs à des sommets.
 Degres lire_degre_fichier(char *nom_fic) {
 	FILE *F;
 	F = fopen(nom_fic, "r");
@@ -540,11 +537,26 @@ int main() {
         assigne_zero(y);
         init_x(x);
         int nb_iterations_backspace = iter_converg(x, y, epsilon);
-        
+
+        //regrouper les valeurs des P,X
+		indice nbSommet = 0;
+		for(int i = 0; i < C; i++) {
+			nbSommet = MAX(nbSommet, nommage[i].s);
+		}
+		affichageComparaison maxBackspace;
+		maxBackspace.val = 0.0;
+		proba *distrib = calloc(nbSommet, sizeof(proba));
+		for(int j = 0; j < C; j++) {
+			distrib[nommage[j].s - 1] += x[j];
+			if (distrib[nommage[j].s - 1] > maxBackspace.val) {
+				maxBackspace.val = distrib[nommage[j].s - 1];
+				maxBackspace.pos = nommage[j].s - 1;
+			}
+		}
         float s1 = 0.0;
-        for(int j = 0; j<C; j++) {
-            printf("val de x pour backspace : %f\n", x[j]);
-            s1 += x[j];
+        for(int j = 0; j<nb_sommet; j++) {
+            printf("val de x pour backspace : %f\n", distrib[j]);
+            s1 += distrib[j];
         }
         printf("somme backspace %f\n", s1);
         
@@ -555,7 +567,11 @@ int main() {
         //free(y);
         free(f);
         
-        lire_fichier3("G9.txt");
+		if (puit) {
+            lire_fichier3("G9.txt");
+        } else {
+            lire_fichier3("res.txt");
+        }
         assigne_zero(y);
         init_x(x);
         int nb_iterations_normal = iter_converg_normal(x, y, epsilon);
@@ -565,6 +581,7 @@ int main() {
             s2 += x[j];
         }
         printf("somme normale %f\n", s2);
+		printf("La plus grande valeur pour backspace est %f pour le sommet %d alors que le sommet pour PageRank est de %d", maxBackspace.val, maxBackspace.pos, x[maxBackspace.pos]);
         free(P_normal);
         free(x);
         free(y);
